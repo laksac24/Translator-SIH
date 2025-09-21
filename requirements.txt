@@ -1,0 +1,6 @@
+pillow
+pytesseract
+pdfplumber
+langchain
+langgraph
+langdetect
