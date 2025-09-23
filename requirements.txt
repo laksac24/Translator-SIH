@@ -4,3 +4,9 @@ pdfplumber
 langchain
 langgraph
 langdetect
+transformers
+dotenv
+torch
+python-multipart
+fastapi
+uvicorn
