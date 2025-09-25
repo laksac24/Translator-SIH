@@ -1,99 +1,3 @@
-# #!/usr/bin/env python3
-
-# from transformers import M2M100ForConditionalGeneration, M2M100Tokenizer
-
-# class BasicTranslator:
-#     def __init__(self):
-#         # Use M2M100 - supports Nepali and many other languages
-#         self.model_name = "facebook/m2m100_418M"  # Smallest version for free hosting
-#         self.model = None
-#         self.tokenizer = None
-        
-#         print("Loading M2M100 translation model...")
-#         try:
-#             self.tokenizer = M2M100Tokenizer.from_pretrained(self.model_name)
-#             self.model = M2M100ForConditionalGeneration.from_pretrained(self.model_name)
-#             print("✅ M2M100 model loaded successfully!")
-#         except Exception as e:
-#             print(f"❌ Failed to load model: {e}")
-    
-#     def translate_nepali(self, text):
-#         """Translate Nepali text to English"""
-#         if not self.model:
-#             return "Model not loaded"
-        
-#         try:
-#             # Set source language to Nepali
-#             self.tokenizer.src_lang = "ne"
-            
-#             # Encode the text
-#             encoded = self.tokenizer(text, return_tensors="pt", padding=True, truncation=True)
-            
-#             # Generate translation to English
-#             generated = self.model.generate(
-#                 **encoded, 
-#                 forced_bos_token_id=self.tokenizer.get_lang_id("en"),
-#                 max_length=200
-#             )
-            
-#             # Decode the result
-#             result = self.tokenizer.batch_decode(generated, skip_special_tokens=True)[0]
-#             return result
-            
-#         except Exception as e:
-#             return f"Translation error: {e}"
-
-# def main():
-#     """Test the translator in terminal"""
-#     translator = BasicTranslator()
-    
-#     print("\n" + "="*50)
-#     print("🌍 Basic Nepali-English Translator")
-#     print("="*50)
-    
-#     # Test sentences
-#     test_sentences = [
-#         "नमस्ते",
-#         "म राम्रो छु",
-#         "तपाईंलाई कस्तो छ?"
-#     ]
-    
-#     print("\n📝 Testing with sample sentences:")
-#     for i, nepali_text in enumerate(test_sentences, 1):
-#         print(f"\n{i}. Nepali: {nepali_text}")
-#         translation = translator.translate_nepali(nepali_text)
-#         print(f"   English: {translation}")
-    
-#     print("\n" + "="*50)
-#     print("💬 Interactive Mode - Enter Nepali text (or 'quit' to exit)")
-#     print("="*50)
-    
-#     while True:
-#         try:
-#             user_input = input("\nEnter Nepali text: ").strip()
-            
-#             if user_input.lower() in ['quit', 'exit', 'q']:
-#                 print("👋 Goodbye!")
-#                 break
-            
-#             if not user_input:
-#                 print("Please enter some text.")
-#                 continue
-            
-#             print("🔄 Translating...")
-#             translation = translator.translate_nepali(user_input)
-#             print(f"📖 Translation: {translation}")
-            
-#         except KeyboardInterrupt:
-#             print("\n👋 Goodbye!")
-#             break
-#         except Exception as e:
-#             print(f"❌ Error: {e}")
-
-# if __name__ == "__main__":
-#     main()
-
-
 from transformers import M2M100ForConditionalGeneration, AutoTokenizer
 
 # Load model and tokenizer
@@ -110,35 +14,215 @@ def translate(text, src_lang, tgt_lang):
     translated_text = tokenizer.decode(translated_tokens[0], skip_special_tokens=True)
     return translated_text
 
-# Example usage
-# if __name__ == "__main__":
-#     text = """नेपाल एक सुन्दर देश हो । यहााँ हहमाल, पहाड र तराईका हिहिन्न िूिागहरू पाइन्छन् । हिहिन्न जातजाहत, िाषा र 
-# संस्कृ हतहरूले नेपाललाई अझै रंगीन बनाएका छन् । पययटनका लाहग नेपाल हिश्विरर प्रहसद्ध छ, हिशेषगरी हहमाल 
-# चढ्न र प्राकृ हतक सुन्दरताको आनन्द हलन आउने पययटकहरूको आकषयण के न्द्र बनेको छ । """
 
-#     import re
 
-# # Common OCR fixes
-#     fixes = {
-#         "हहमाल": "हिमाल",
-#         "हिहिन्न": "विभिन्न",
-#         "िूिाग": "भू-भाग",
-#         "पययटन": "पर्यटन",
-#         "लाहग": "का लागि",
-#         "हिश्विरर": "विश्वभर",
-#         "प्रहसद्ध": "प्रसिद्ध",
-#         "हिशेषगरी": "विशेषगरी",
-#         "प्राकृ हतक": "प्राकृतिक",
-#         "हलन": "लिन",
-#         "आकषयण के न्द्र": "आकर्षण केन्द्र"
+# # translator.py - Using quantized models for memory efficiency
+# import os
+# import gc
+# import torch
+# from typing import Optional
+
+# # Set environment variables to reduce memory usage
+# os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+# os.environ['OMP_NUM_THREADS'] = '1'
+
+# _model = None
+# _tokenizer = None
+
+# def load_quantized_model():
+#     """Load model with quantization to reduce memory usage"""
+#     global _model, _tokenizer
+    
+#     try:
+#         from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+        
+#         # Use a smaller multilingual model
+#         model_name = "facebook/nllb-200-distilled-600M"  # Much smaller than small100
+        
+#         print(f"Loading quantized model: {model_name}")
+        
+#         # Load tokenizer
+#         _tokenizer = AutoTokenizer.from_pretrained(model_name)
+        
+#         # Load model with quantization
+#         _model = AutoModelForSeq2SeqLM.from_pretrained(
+#             model_name,
+#             torch_dtype=torch.float16,  # Use half precision
+#             device_map='cpu',
+#             low_cpu_mem_usage=True,
+#             use_cache=False  # Disable KV cache to save memory
+#         )
+        
+#         # Apply dynamic quantization to reduce memory further
+#         try:
+#             _model = torch.quantization.quantize_dynamic(
+#                 _model, {torch.nn.Linear}, dtype=torch.qint8
+#             )
+#             print("Applied dynamic quantization")
+#         except Exception as e:
+#             print(f"Quantization failed, using regular model: {e}")
+        
+#         print("Model loaded successfully with memory optimizations")
+#         return _model, _tokenizer
+        
+#     except Exception as e:
+#         print(f"Failed to load quantized model: {e}")
+#         return None, None
+
+# def translate(text: str, src_lang: str, tgt_lang: str) -> str:
+#     """
+#     Translate using quantized model with memory management
+#     """
+#     try:
+#         model, tokenizer = _model, _tokenizer
+        
+#         if model is None or tokenizer is None:
+#             model, tokenizer = load_quantized_model()
+            
+#         if model is None or tokenizer is None:
+#             return translate_fallback(text, src_lang, tgt_lang)
+        
+#         # Language code mapping for NLLB
+#         lang_codes = {
+#             'ne': 'nep_Deva',  # Nepali
+#             'si': 'sin_Sinh',  # Sinhala  
+#             'en': 'eng_Latn'   # English
+#         }
+        
+#         src_code = lang_codes.get(src_lang, src_lang)
+#         tgt_code = lang_codes.get(tgt_lang, tgt_lang)
+        
+#         # Tokenize with memory constraints
+#         tokenizer.src_lang = src_code
+#         inputs = tokenizer(
+#             text, 
+#             return_tensors="pt", 
+#             padding=True, 
+#             truncation=True, 
+#             max_length=256  # Reduced from 512 to save memory
+#         )
+        
+#         # Generate with memory optimizations
+#         with torch.no_grad():
+#             generated_tokens = model.generate(
+#                 **inputs,
+#                 forced_bos_token_id=tokenizer.lang_code_to_id[tgt_code],
+#                 max_length=256,
+#                 num_beams=1,  # Use greedy decoding instead of beam search
+#                 do_sample=False,
+#                 early_stopping=True
+#             )
+        
+#         # Decode result
+#         translated_text = tokenizer.batch_decode(
+#             generated_tokens, skip_special_tokens=True
+#         )[0]
+        
+#         # Aggressive memory cleanup
+#         del inputs, generated_tokens
+#         if torch.cuda.is_available():
+#             torch.cuda.empty_cache()
+#         gc.collect()
+        
+#         return translated_text
+        
+#     except Exception as e:
+#         print(f"Quantized translation failed: {e}")
+#         return translate_fallback(text, src_lang, tgt_lang)
+
+# def translate_fallback(text: str, src_lang: str, tgt_lang: str) -> str:
+#     """Enhanced rule-based fallback with more vocabulary"""
+    
+#     # Expanded dictionaries
+#     nepali_translations = {
+#         # Nature & Geography
+#         'नेपाल': 'Nepal', 'हिमाल': 'Himalayas', 'पर्वत': 'mountain', 'पहाड': 'hill',
+#         'नदी': 'river', 'ताल': 'lake', 'वन': 'forest', 'जंगल': 'jungle',
+#         'आकाश': 'sky', 'पानी': 'water', 'हावा': 'air', 'माटो': 'soil',
+        
+#         # People & Family  
+#         'मान्छे': 'person', 'मानिस': 'person', 'आमा': 'mother', 'बुबा': 'father',
+#         'छोरा': 'son', 'छोरी': 'daughter', 'दाई': 'elder brother', 'भाइ': 'brother',
+#         'दिदी': 'elder sister', 'बहिनी': 'sister', 'परिवार': 'family',
+        
+#         # Common words
+#         'घर': 'house', 'गाउँ': 'village', 'शहर': 'city', 'बाटो': 'road',
+#         'स्कुल': 'school', 'काम': 'work', 'खाना': 'food', 'पैसा': 'money',
+#         'समय': 'time', 'दिन': 'day', 'रात': 'night', 'बिहान': 'morning',
+        
+#         # Descriptions
+#         'राम्रो': 'good', 'नराम्रो': 'bad', 'सुन्दर': 'beautiful', 'ठूलो': 'big',
+#         'सानो': 'small', 'नयाँ': 'new', 'पुरानो': 'old', 'चाहिं': 'then',
+        
+#         # Actions
+#         'जानु': 'to go', 'आउनु': 'to come', 'खानु': 'to eat', 'पिउनु': 'to drink',
+#         'सुत्नु': 'to sleep', 'उठ्नु': 'to wake up', 'पढ्नु': 'to read',
+        
+#         # Culture & Society
+#         'भाषा': 'language', 'संस्कृति': 'culture', 'धर्म': 'religion',
+#         'त्यौहार': 'festival', 'पर्यटन': 'tourism', 'पर्यटक': 'tourist'
 #     }
+    
+#     sinhala_translations = {
+#         # Nature & Geography
+#         'ශ්‍රී ලංකාව': 'Sri Lanka', 'කන්ද': 'mountain', 'ගඟ': 'river',
+#         'මුහුද': 'ocean', 'වන': 'forest', 'ගම': 'village', 'නගර': 'city',
+        
+#         # People & Family
+#         'මිනිසා': 'person', 'අම්මා': 'mother', 'තාත්තා': 'father',
+#         'පුතා': 'son', 'දුව': 'daughter', 'අයියා': 'elder brother',
+#         'අක්කා': 'elder sister', 'පවුල': 'family',
+        
+#         # Common words
+#         'ගෙදර': 'house', 'පාසල': 'school', 'වැඩ': 'work', 'කෑම': 'food',
+#         'මුදල්': 'money', 'කාලය': 'time', 'දිනය': 'day', 'රාත්‍රිය': 'night',
+        
+#         # Descriptions
+#         'හොඳ': 'good', 'නරක': 'bad', 'ලස්සන': 'beautiful', 'විශාල': 'big',
+#         'පොඩි': 'small', 'අලුත්': 'new', 'පැරණි': 'old',
+        
+#         # Culture & Society
+#         'භාෂාව': 'language', 'සංස්කෘතිය': 'culture', 'ආගම': 'religion'
+#     }
+    
+#     # Select dictionary
+#     translations = nepali_translations if src_lang == 'ne' else sinhala_translations
+    
+#     # Enhanced word-by-word translation
+#     words = text.split()
+#     result = []
+    
+#     for word in words:
+#         clean_word = word.strip('।,.!?;:"()[]{}')
+        
+#         # Direct lookup
+#         if clean_word in translations:
+#             result.append(translations[clean_word])
+#         # Partial matching for complex words
+#         else:
+#             found = False
+#             for nep_word, eng_word in translations.items():
+#                 if nep_word in clean_word:
+#                     result.append(f"{eng_word}*")
+#                     found = True
+#                     break
+            
+#             if not found:
+#                 result.append(f"[{clean_word}]")
+    
+#     return "[Dictionary] " + " ".join(result)
 
-#     # Apply fixes
-#     ocr_text = text  # start with original text
-#     for wrong, correct in fixes.items():
-#         ocr_text = re.sub(wrong, correct, ocr_text)
-
-#     print(ocr_text)
-
-#     translated_text = translate(ocr_text, "ne", "en")
-#     print(f"Translated Text: {translated_text}")
+# def clear_model():
+#     """Clear model from memory"""
+#     global _model, _tokenizer
+    
+#     if _model is not None:
+#         del _model
+#         _model = None
+#     if _tokenizer is not None:
+#         del _tokenizer
+#         _tokenizer = None
+    
+#     gc.collect()
+#     if torch.cuda.is_available():
+#         torch.cuda.empty_cache()
